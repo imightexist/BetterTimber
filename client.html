@@ -9,13 +9,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
-    <script>
-        function custom(){
-            let server = prompt('Insert websocket server. Usually in all.min.js in the serverAddress variable');
-            let name = prompt('Insert VM Name. Go to a vm and type in javascript:alert(vmName)');
-            window.location = "client.html?server=" + server + "&name=" + name;
-        }
-    </script>
     <style>
         body {
             background-image: url(wallpaper.png);
@@ -39,6 +32,7 @@
         ::-webkit-scrollbar-thumb:hover {
             background: rgb(122, 122, 122);
         }
+
 
         body {
             font-family: "Segoe UI", sans-serif;
@@ -209,6 +203,66 @@
             color:white
         }
     </style>
+    <script>
+        function decodeCommand(cypher) {
+            var sections = [];
+            var bump = 0;
+            while (sections.length <= 50 && cypher.length >= bump) {
+                var current = cypher.substring(bump);
+                var length = parseInt(current.substring(current.search(/\./) - 2));
+                var paramater = current.substring(length.toString().length + 1, Math.floor(length / 10) + 2 + length);
+                sections[sections.length] = paramater;
+                bump += Math.floor(length / 10) + 3 + length;
+            }
+            sections[sections.length - 1] = sections[sections.length - 1].substring(0, sections[sections.length - 1].length - 1);
+            return sections;
+        }
+        function encodeCommand(cypher) {
+            var command = "";
+            for (var i = 0; i < cypher.length; i++) {
+                var current = cypher[i];
+                command += current.length + "." + current;
+                command += (i < cypher.length - 1 ? "," : ";");
+            }
+            return command;
+        }
+        function rename(){
+            username = prompt("New username");
+            socket.send(encodeCommand(['rename',username]));
+            document.getElementById('title').innerHTML = "BetterTimber | VM: " + params.get('name') + " | Username: " + username;
+        }
+        function admin(){
+            pass = prompt("Admin password");
+            socket.send(encodeCommand(['admin','2',pass]));
+        }
+        function taketurn(){
+            document.getElementById('status').innerHTML = "Turn time left: ";
+            document.getElementById('endturn').style.removeProperty('display');
+            document.getElementById('taketurn').style.display = "none";
+            socket.send(encodeCommand(['turn']));
+        }
+        function endturn(){
+            document.getElementById('status').innerHTML = "No turn";
+            document.getElementById('endturn').style.display = "none";
+            document.getElementById('taketurn').style.removeProperty('display');
+            socket.send(encodeCommand(['turn','0']));
+        }
+        window.onload = function(){
+            //bruh
+            params = new URLSearchParams(window.location.search);
+            username = "guest" + (Math.floor(Math.random() * 98999) + 10).toString();
+            document.getElementById('title').innerHTML = "BetterTimber | VM: " + params.get('name') + " | Username: " + username;
+            canvas = document.getElementById('screen');
+            socket = new WebSocket("ws://" + params.get('vm'),['guacamole']);
+            socket.onopen = function(){
+                socket.send(encodeCommand(['connect',params.get('name')]));
+                socket.send(encodeCommand(['rename',username]));
+                setInterval(function(){
+                    socket.send(encodeCommand(['nop']));
+                },2500);
+            }
+        }
+    </script>
 </head>
 
 <body>
@@ -216,104 +270,23 @@
         <center>
             <div class="container-fluid">
                 <ul class="nav navbar-nav">
-                    <center>BetterTimber</center>
+                    <center id="title">BetterTimber</center>
                 </ul>
             </div>
         </center>
     </nav>
-    <div class="container">
-        <h2 style="color:white">BetterTimber</h2>
-        <hr>
-        <h4 style="color:white">A CollabVM client based on TimberVM</h4>
-        <h4 style="color:white">by iexist</h4><br>
-        <div class="row site-view-2">
-            <div class="col-md-4">
-                <div class="thumbnail"> <a href="client.html?vm=computernewb.com/collab-vm/vm0&name=vm0">
-                        <div class="caption">
-                            <h4>CollabVM | MacOS</h4>
-                        </div>
-                    </a> </div>
-            </div>
-            <div class="col-md-4">
-                <div class="thumbnail"> <a href="client.html?vm=computernewb.com/collab-vm/vm1&name=vm1">
-                        <div class="caption">
-                            <h4>CollabVM | Windows 7</h4>
-                        </div>
-                    </a> </div>
-            </div>
-            <div class="col-md-4">
-                <div class="thumbnail"> <a href="client.html?vm=computernewb.com/collab-vm/vm2&name=vm2">
-                        <div class="caption">
-                            <h4>CollabVM | Windows XP</h4>
-                        </div>
-                    </a> </div>
-            </div>
-            <div class="col-md-4">
-                <div class="thumbnail"> <a href="client.html?vm=computernewb.com/collab-vm/vm3&name=vm3">
-                        <div class="caption">
-                            <h4>CollabVM | Lubuntu</h4>
-                        </div>
-                    </a> </div>
-            </div>
-            <div class="col-md-4">
-                <div class="thumbnail"> <a href="client.html?vm=computernewb.com/collab-vm/vm4&name=vm4">
-                        <div class="caption">
-                            <h4>CollabVM | Windows 8.1</h4>
-                        </div>
-                    </a> </div>
-            </div>
-            <div class="col-md-4">
-                <div class="thumbnail"> <a href="client.html?vm=computernewb.com/collab-vm/vm5&name=vm5">
-                        <div class="caption">
-                            <h4>CollabVM | Windows 10</h4>
-                        </div>
-                    </a> </div>
-            </div>
-            <div class="col-md-4">
-                <div class="thumbnail"> <a href="client.html?vm=computernewb.com/collab-vm/vm6&name=vm6">
-                        <div class="caption">
-                            <h4>CollabVM | Windows 11</h4>
-                        </div>
-                    </a> </div>
-            </div>
-            <div class="col-md-4">
-                <div class="thumbnail"> <a href="client.html?vm=computernewb.com/collab-vm/vm7&name=vm7">
-                        <div class="caption">
-                            <h4>CollabVM | Installfag 1</h4>
-                        </div>
-                    </a> </div>
-            </div>
-            <div class="col-md-4">
-                <div class="thumbnail"> <a href="client.html?vm=computernewb.com/collab-vm/vm8&name=vm8">
-                        <div class="caption">
-                            <h4>CollabVM | Installfag 2</h4>
-                        </div>
-                    </a> </div>
-            </div>
-            <div class="col-md-4" id="uvm">
-                <div class="thumbnail"> <a href="client.html?vm=192.151.158.66:6004&name=VM13">
-                        <div class="caption">
-                            <h4>DankVM | Windows 91</h4>
-                        </div>
-                    </a> </div>
-            </div>
-            <div class="col-md-4" id="dvm">
-                <div class="thumbnail"> <a href="client.html?vm=192.151.158.66:6004&name=VM4">
-                        <div class="caption">
-                            <h4>DankVM | Windows 7</h4>
-                        </div>
-                    </a> </div>
-            </div>
-            <div class="col-md-4" id="dvm">
-                <div class="thumbnail"> <a href="javascript:custom()">
-                        <div class="caption">
-                            <h4>Insert Server Address</h4>
-                        </div>
-                    </a> </div>
-            </div>
+    
+    <center>
+        <div class="container">
+            <h6 id="status" style="color:white;font-size:34px">No turn</h6>
+            <img id="screen">
+            <button id="taketurn" onclick="taketurn()">Take Turn</button>
+            <button id="endturn" onclick="endturn()" style="display:none">End Turn</button>
+            <button id="rename" onclick="rename()">Rename</button>
+            <button id="admin" onclick="admin()">Admin</button>
         </div>
-    </div>
-    </div>
+    </center>
+    
 </body>
 
 </html>
