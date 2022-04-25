@@ -12,6 +12,6 @@ function bettertimber() {
 add_icon_not_via_filesystem({
     title: "BetterTimber",
     iconID: "desktop",
-    open: example,
+    open: bettertimber,
     shortcut: true
 });
