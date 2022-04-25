@@ -254,12 +254,25 @@
             document.getElementById('title').innerHTML = "BetterTimber | VM: " + params.get('name') + " | Username: " + username;
             canvas = document.getElementById('screen');
             socket = new WebSocket("ws://" + params.get('vm'),['guacamole']);
+            document.getElementById('chat-input').addEventListener('keyup',function(event){
+                if (event.key == "Enter"){
+                    socket.send(encodeCommand(['chat',document.getElementById('chat-input').value]));
+                    document.getElementById('chat-input').value = "";
+                }
+            });
             socket.onopen = function(){
                 socket.send(encodeCommand(['connect',params.get('name')]));
                 socket.send(encodeCommand(['rename',username]));
                 setInterval(function(){
                     socket.send(encodeCommand(['nop']));
                 },2500);
+            }
+            socket.onmessage = function(e){
+                cmd = decodeCommand(e.data);
+                if (cmd[0] == "chat"){
+                    document.getElementById('chat').innerHTML += "\n" + cmd[1] + ": " + cmd[2];
+                    document.getElementById('chat').scrollTo(0,document.getElementById('chat').scrollHeight);
+                }
             }
         }
     </script>
@@ -284,7 +297,11 @@
             <button id="endturn" onclick="endturn()" style="display:none">End Turn</button>
             <button id="rename" onclick="rename()">Rename</button>
             <button id="admin" onclick="admin()">Admin</button>
+            <br><br>
         </div>
+        <textarea id="chat" readonly style="width:500px;height:500px;resize:none">Chat</textarea>
+        <br><br>
+        <input id="chat-input" style="width:500px">
     </center>
     
 </body>
