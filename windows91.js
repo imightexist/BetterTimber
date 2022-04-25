@@ -2,7 +2,7 @@ function bettertimber() {
     var $win = make_iframe_window({
         src: "http://quark-elemental-tsunami.glitch.me/",
         icons: iconsAtTwoSizes("desktop"),
-        title: "hello world",
+        title: "BetterTimber",
         innerWidth: 640,
         innerHeight: 480,
     });
