@@ -198,9 +198,54 @@
         .dropdown:hover .dropbtn {
             background-color: #3e8e41;
         }
-        .navbar-nav{
-            font-size:40px;
-            color:white
+
+        .navbar-nav {
+            font-size: 40px;
+            color: white
+        }
+
+        .message-pane {
+            border-radius: 10px;
+            padding-top: 1px;
+            width: 600px;
+            background-color: #42affc;
+            height: 500px;
+            overflow: auto
+        }
+
+        .message-pane-wrapper {
+            border-radius: 4px;
+            clear: both;
+            overflow: auto;
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            height: auto;
+            width: auto;
+            /*margin: 0 200px 31px 0;*/
+            margin-bottom: 44px;
+            font-size: 13px;
+            padding: 0 5px;
+        }
+
+        .message-item {
+            border-radius: 5px;
+            font-size: 20px;
+            color: white;
+            background-color: #2da6fc;
+            list-style: none;
+            margin-top: 2px;
+            width: 598px
+        }
+
+        .message-item:hover {
+            background-color: #179dfc
+        }
+
+        button {
+            font-size: 20px
         }
     </style>
     <script>
@@ -217,6 +262,22 @@
             sections[sections.length - 1] = sections[sections.length - 1].substring(0, sections[sections.length - 1].length - 1);
             return sections;
         }
+        function decodeTwo(str) {
+            let result = [];
+            for (let i = 0; i < str.length; i++) {
+                let sectionLengthStr = [];
+                for (; str[i] !== '.'; i++) {
+                    sectionLengthStr.push(str[i]);
+                }
+                i++;
+                const sectionLength = parseInt(sectionLengthStr.join(''));
+                if (sectionLength === NaN) throw new Error('sectionLength is NaN while decoding guacamole string' + str);
+                result.push(str.substring(i, i + sectionLength));
+                i += sectionLength;
+                if (str[i] === ';') break;
+            }
+            return result;
+        }
         function encodeCommand(cypher) {
             var command = "";
             for (var i = 0; i < cypher.length; i++) {
@@ -226,52 +287,271 @@
             }
             return command;
         }
-        function rename(){
+        function rename() {
             username = prompt("New username");
-            socket.send(encodeCommand(['rename',username]));
+            socket.send(encodeCommand(['rename', username]));
             document.getElementById('title').innerHTML = "BetterTimber | VM: " + params.get('name') + " | Username: " + username;
         }
-        function admin(){
+        function admin() {
             pass = prompt("Admin password");
-            socket.send(encodeCommand(['admin','2',pass]));
+            socket.send(encodeCommand(['admin', '2', pass]));
         }
-        function taketurn(){
+        function taketurn() {
             document.getElementById('status').innerHTML = "Turn time left: ";
             document.getElementById('endturn').style.removeProperty('display');
             document.getElementById('taketurn').style.display = "none";
             socket.send(encodeCommand(['turn']));
         }
-        function endturn(){
+        function taketurnScreen() {
+            if (document.getElementById('endturn').style.display = "none") {
+                document.getElementById('status').innerHTML = "Turn time left: ";
+                document.getElementById('endturn').style.removeProperty('display');
+                document.getElementById('taketurn').style.display = "none";
+                socket.send(encodeCommand(['turn']));
+            }
+        }
+        function endturn() {
             document.getElementById('status').innerHTML = "No turn";
             document.getElementById('endturn').style.display = "none";
             document.getElementById('taketurn').style.removeProperty('display');
-            socket.send(encodeCommand(['turn','0']));
+            socket.send(encodeCommand(['turn', '0']));
         }
-        window.onload = function(){
+        function cancelEvent(e) {
+            e.stopPropagation();
+            if (e.preventDefault) e.preventDefault();
+            e.returnValue = false;
+        }
+        window.onload = function () {
             //bruh
             params = new URLSearchParams(window.location.search);
             username = "guest" + (Math.floor(Math.random() * 98999) + 10).toString();
             document.getElementById('title').innerHTML = "BetterTimber | VM: " + params.get('name') + " | Username: " + username;
-            canvas = document.getElementById('screen');
-            socket = new WebSocket("ws://" + params.get('vm'),['guacamole']);
-            document.getElementById('chat-input').addEventListener('keyup',function(event){
-                if (event.key == "Enter"){
-                    socket.send(encodeCommand(['chat',document.getElementById('chat-input').value]));
+            canvas = document.getElementById('screen').getContext('2d');
+            screen = document.getElementById('screen').getContext('2d');
+            computernewbVM = params.get('vm').startsWith('computernewb.com/collab-vm/vm');
+            //var socket;
+            /*
+            if (params.get('vm').startsWith('computernewb.com/collab-vm/vm')){
+                socket = new WebSocket("wss://" + params.get('vm'), ['guacamole']);
+            }else{
+                socket = new WebSocket("ws://" + params.get('vm'), ['guacamole']);
+            }
+            */
+            socket = new WebSocket("ws://" + params.get('vm'), ['guacamole']);
+            canvas.oncontextmenu = function (e) {
+                cancelEvent(e);
+            };
+            let updateMouseBtnVars = function(e){
+                this.mouseLeft = (e.buttons & 0b001) == 0b001;
+                this.mouseRight = (e.buttons & 0b010) == 0b010;
+                this.mouseMiddle = (e.buttons & 0b100) == 0b100;
+            }
+            let sendMouse = function(x,y){
+                let btnMask = 0;
+                if (this.mouseLeft) btnMask |= 1;
+                if (this.mouseMiddle) btnMask |= 2;
+                if (this.mouseRight) btnMask |= 4;
+                currentConn.sendGuac(['mouse', Math.floor(x).toString(), Math.floor(y).toString(), btnMask.toString()]);
+            };
+            let onmouse = function (e) {
+                cancelEvent(e);
+                updateMouseBtnVars(e);
+                let rect = e.target.getBoundingClientRect();
+                let x = (e.clientX - rect.left) / canvas.getBoundingClientRect().width * canvas.width;
+                let y = (e.clientY - rect.top) / canvas.getBoundingClientRect().height * canvas.height;
+                sendMouse(x, y);
+            };
+            canvas.onmouseup = onmouse;
+            canvas.onmousedown = onmouse;
+            canvas.onmousemove = onmouse;
+            document.getElementById('chat-input').addEventListener('keyup', function (event) {
+                if (event.key == "Enter") {
+                    socket.send(encodeCommand(['chat', document.getElementById('chat-input').value]));
                     document.getElementById('chat-input').value = "";
                 }
             });
-            socket.onopen = function(){
-                socket.send(encodeCommand(['connect',params.get('name')]));
-                socket.send(encodeCommand(['rename',username]));
-                setInterval(function(){
+            document.getElementById('screen').addEventListener('keydown', function (event) {
+                const keycodeKeysyms = {
+                    8: [0xFF08], // backspace
+                    9: [0xFF09], // tab
+                    13: [0xFF0D], // enter
+                    16: [0xFFE1, 0xFFE1, 0xFFE2], // shift
+                    17: [0xFFE3, 0xFFE3, 0xFFE4], // ctrl
+                    18: [0xFFE9, 0xFFE9, 0xFE03], // alt
+                    19: [0xFF13], // pause/break
+                    20: [0xFFE5], // caps lock
+                    27: [0xFF1B], // escape
+                    32: [0x0020], // space
+                    33: [0xFF55], // page up
+                    34: [0xFF56], // page down
+                    35: [0xFF57], // end
+                    36: [0xFF50], // home
+                    37: [0xFF51], // left arrow
+                    38: [0xFF52], // up arrow
+                    39: [0xFF53], // right arrow
+                    40: [0xFF54], // down arrow
+                    45: [0xFF63], // insert
+                    46: [0xFFFF], // delete
+                    91: [0xFFEB], // left window key (hyper_l)
+                    92: [0xFF67], // right window key (menu key?)
+                    93: null,     // select key
+                    112: [0xFFBE], // f1
+                    113: [0xFFBF], // f2
+                    114: [0xFFC0], // f3
+                    115: [0xFFC1], // f4
+                    116: [0xFFC2], // f5
+                    117: [0xFFC3], // f6
+                    118: [0xFFC4], // f7
+                    119: [0xFFC5], // f8
+                    120: [0xFFC6], // f9
+                    121: [0xFFC7], // f10
+                    122: [0xFFC8], // f11
+                    123: [0xFFC9], // f12
+                    144: [0xFF7F], // num lock
+                    145: [0xFF14], // scroll lock
+                    222: [39],
+                    188: [44],
+                    173: [45], // - key
+                    190: [46],
+                    191: [47], // / key
+                    219: [91],
+                    220: [92],
+                    221: [93],
+                    192: [96],
+                    225: [0xFE03]  // altgraph (iso_level3_shift)
+                };
+                keycode = event.keycode;
+                if (keycodeKeysyms.hasOwnProperty(keycode)) keycode = keycodeKeysyms[keycode][event.location] || keycodeKeysyms[keycode][0];
+                else if (!isShiftDown && keycode >= 65 && keycode <= 90) keycode = keycode | 0b00100000;
+                socket.send(encodeCommand(['key', keycode.toString(), '1']));
+            });
+            document.getElementById('screen').addEventListener('keyup', function (event) {
+                const keycodeKeysyms = {
+                    8: [0xFF08], // backspace
+                    9: [0xFF09], // tab
+                    13: [0xFF0D], // enter
+                    16: [0xFFE1, 0xFFE1, 0xFFE2], // shift
+                    17: [0xFFE3, 0xFFE3, 0xFFE4], // ctrl
+                    18: [0xFFE9, 0xFFE9, 0xFE03], // alt
+                    19: [0xFF13], // pause/break
+                    20: [0xFFE5], // caps lock
+                    27: [0xFF1B], // escape
+                    32: [0x0020], // space
+                    33: [0xFF55], // page up
+                    34: [0xFF56], // page down
+                    35: [0xFF57], // end
+                    36: [0xFF50], // home
+                    37: [0xFF51], // left arrow
+                    38: [0xFF52], // up arrow
+                    39: [0xFF53], // right arrow
+                    40: [0xFF54], // down arrow
+                    45: [0xFF63], // insert
+                    46: [0xFFFF], // delete
+                    91: [0xFFEB], // left window key (hyper_l)
+                    92: [0xFF67], // right window key (menu key?)
+                    93: null,     // select key
+                    112: [0xFFBE], // f1
+                    113: [0xFFBF], // f2
+                    114: [0xFFC0], // f3
+                    115: [0xFFC1], // f4
+                    116: [0xFFC2], // f5
+                    117: [0xFFC3], // f6
+                    118: [0xFFC4], // f7
+                    119: [0xFFC5], // f8
+                    120: [0xFFC6], // f9
+                    121: [0xFFC7], // f10
+                    122: [0xFFC8], // f11
+                    123: [0xFFC9], // f12
+                    144: [0xFF7F], // num lock
+                    145: [0xFF14], // scroll lock
+                    222: [39],
+                    188: [44],
+                    173: [45], // - key
+                    190: [46],
+                    191: [47], // / key
+                    219: [91],
+                    220: [92],
+                    221: [93],
+                    192: [96],
+                    225: [0xFE03]  // altgraph (iso_level3_shift)
+                };
+                keycode = event.keycode;
+                if (keycode == 16) {
+                    isShiftDown = true;
+                }
+                if (keycodeKeysyms.hasOwnProperty(keycode)) keycode = keycodeKeysyms[keycode][event.location] || keycodeKeysyms[keycode][0];
+                else if (!isShiftDown && keycode >= 65 && keycode <= 90) keycode = keycode | 0b00100000;
+                socket.send(encodeCommand(['key', keycode.toString(), '0']));
+            });
+            socket.onopen = function () {
+                socket.send(encodeCommand(['connect', params.get('name')]));
+                socket.send(encodeCommand(['rename', username]));
+                if (computernewbVM){
+                    ul = document.createElement('li');
+                    ul.classList.add('message-item');
+                    ul.innerHTML = "System: currently CollabVM has weird features that makes it impossible to connect, thus you can only chat and rename";
+                    document.getElementById("chat").appendChild(ul);
+                    document.getElementById('chat').scrollTo(0, document.getElementById('chat').scrollHeight);
+                }
+                setInterval(function () {
                     socket.send(encodeCommand(['nop']));
-                },2500);
+                }, 2500);
             }
-            socket.onmessage = function(e){
-                cmd = decodeCommand(e.data);
-                if (cmd[0] == "chat"){
-                    document.getElementById('chat').innerHTML += "\n" + cmd[1] + ": " + cmd[2];
-                    document.getElementById('chat').scrollTo(0,document.getElementById('chat').scrollHeight);
+            socket.onerror = function(err){
+                console.error("Error: " + err);
+                socket = new WebSocket("ws://" + params.get('vm'), ['guacamole']);
+            }
+            socket.onmessage = function (e) {
+                //socket.send(encodeCommand(['connect', params.get('name')]));
+                if (computernewbVM){
+                    //experimental
+                }else{
+                    socket.send(encodeCommand(['connect', params.get('name')]));
+                }
+                socket.send(encodeCommand(['rename', username]));
+                cmd = decodeTwo(e.data);
+                if (cmd[0] == "chat" && !(cmd[1] == "")) {
+                    //document.getElementById('chat').innerHTML += "\n" + cmd[1] + ": " + cmd[2];
+                    ul = document.createElement('li');
+                    ul.classList.add('message-item');
+                    ul.innerHTML = cmd[1] + ": " + cmd[2];
+                    document.getElementById("chat").appendChild(ul);
+                    document.getElementById('chat').scrollTo(0, document.getElementById('chat').scrollHeight);
+                }
+                if (cmd[0] == "chat" && cmd[1] == "") {
+                    //document.getElementById('chat').innerHTML += "\n" + cmd[1] + ": " + cmd[2];
+                    ul = document.createElement('li');
+                    ul.classList.add('message-item');
+                    ul.innerHTML = "System" + ": " + cmd[2];
+                    document.getElementById("chat").appendChild(ul);
+                    document.getElementById('chat').scrollTo(0, document.getElementById('chat').scrollHeight);
+                }
+                if (cmd[0] == "png" && cmd[2] == "0") {
+                    img = new Image();
+                    img.src = 'data:image/png;base64,' + cmd[5].split('.').pop();
+                    img.onload = function () {
+                        screen.drawImage(img, parseInt(cmd[3]), parseInt(cmd[4]));
+                    }
+                }
+                if (cmd[0] == "png" && !(cmd[2] == "0")) {
+                    img = new Image();
+                    imgData = screen.createImageData(canvas.width, canvas.height);
+                    img.src = 'data:image/png;base64,' + cmd[5].split('.').pop();
+                    img.onload = function () {
+                        screen.drawImage(img, 0, 0);
+                        screen.canvas.width = img.width;
+                        screen.canvas.height = img.height;
+                    }
+                }
+                if (cmd[0] == 'size' && cmd[1] == "0") {
+                    screen.canvas.width = parseInt(cmd[2]);
+                    screen.canvas.height = parseInt(cmd[3]);
+                }
+                if (cmd[0] == 'adduser'){
+                    ul = document.createElement('li');
+                    ul.classList.add("message-item");
+                    ul.innerHTML = cmd.slice(2);
+                    document.getElementById('users');
                 }
             }
         }
@@ -288,22 +568,28 @@
             </div>
         </center>
     </nav>
-    
+
     <center>
         <div class="container">
-            <h6 id="status" style="color:white;font-size:34px">No turn</h6>
-            <img id="screen">
+            <h6 id="status" style="color:white;font-size:34px">No turn</h6><br>
+            <canvas id="screen" onclick="taketurnScreen()"></canvas><br>
+            <img id="screen2">
             <button id="taketurn" onclick="taketurn()">Take Turn</button>
             <button id="endturn" onclick="endturn()" style="display:none">End Turn</button>
+            <button id="keyboard" onclick="alert('coming soon')">Keyboard</button>
             <button id="rename" onclick="rename()">Rename</button>
             <button id="admin" onclick="admin()">Admin</button>
+            <button id="voteyes" onclick="socket.send(encodeCommand(['vote','1']))">Vote Yes</button>
+            <button id="voteno" onclick="socket.send(encodeCommand(['vote','0']))">Vote No</button>
             <br><br>
         </div>
-        <textarea id="chat" readonly style="width:500px;height:500px;resize:none">Chat</textarea>
+        <div id="users" class="message-pane" style="display:inline-block"><li class="message-item" style="font-size:25px">Users online</li></div>
+        <div id="chat" class="message-pane" style="display:inline-block"></div>
         <br><br>
-        <input id="chat-input" style="width:500px">
+        <input id="chat-input" style="width:600px;position:sticky;position:relative;left:300px">
+        <br><br>
     </center>
-    
+
 </body>
 
 </html>
