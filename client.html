@@ -247,6 +247,10 @@
         button {
             font-size: 20px
         }
+        .admin{
+            color:red;
+            font-weight:bold;
+        }
     </style>
     <script>
         function decodeCommand(cypher) {
@@ -341,12 +345,12 @@
             canvas.oncontextmenu = function (e) {
                 cancelEvent(e);
             };
-            let updateMouseBtnVars = function(e){
+            let updateMouseBtnVars = function (e) {
                 this.mouseLeft = (e.buttons & 0b001) == 0b001;
                 this.mouseRight = (e.buttons & 0b010) == 0b010;
                 this.mouseMiddle = (e.buttons & 0b100) == 0b100;
             }
-            let sendMouse = function(x,y){
+            let sendMouse = function (x, y) {
                 let btnMask = 0;
                 if (this.mouseLeft) btnMask |= 1;
                 if (this.mouseMiddle) btnMask |= 2;
@@ -486,7 +490,7 @@
             socket.onopen = function () {
                 socket.send(encodeCommand(['connect', params.get('name')]));
                 socket.send(encodeCommand(['rename', username]));
-                if (computernewbVM){
+                if (computernewbVM) {
                     ul = document.createElement('li');
                     ul.classList.add('message-item');
                     ul.innerHTML = "System: currently CollabVM has weird features that makes it impossible to connect, thus you can only chat and rename";
@@ -497,15 +501,15 @@
                     socket.send(encodeCommand(['nop']));
                 }, 2500);
             }
-            socket.onerror = function(err){
+            socket.onerror = function (err) {
                 console.error("Error: " + err);
                 socket = new WebSocket("ws://" + params.get('vm'), ['guacamole']);
             }
             socket.onmessage = function (e) {
                 //socket.send(encodeCommand(['connect', params.get('name')]));
-                if (computernewbVM){
+                if (computernewbVM) {
                     //experimental
-                }else{
+                } else {
                     socket.send(encodeCommand(['connect', params.get('name')]));
                 }
                 socket.send(encodeCommand(['rename', username]));
@@ -538,20 +542,30 @@
                     imgData = screen.createImageData(canvas.width, canvas.height);
                     img.src = 'data:image/png;base64,' + cmd[5].split('.').pop();
                     img.onload = function () {
-                        screen.drawImage(img, 0, 0);
+                        screen.drawImage(img, parseInt(cmd[3]), parseInt(cmd[4]));
                         screen.canvas.width = img.width;
                         screen.canvas.height = img.height;
                     }
+
                 }
                 if (cmd[0] == 'size' && cmd[1] == "0") {
                     screen.canvas.width = parseInt(cmd[2]);
                     screen.canvas.height = parseInt(cmd[3]);
                 }
-                if (cmd[0] == 'adduser'){
-                    ul = document.createElement('li');
-                    ul.classList.add("message-item");
-                    ul.innerHTML = cmd.slice(2);
-                    document.getElementById('users');
+                if (cmd[0] == 'adduser') {
+                    for (let i = 2; (i - 2) / 2 < parseInt(cmd[1]); i = i + 2) {
+                        ul = document.createElement('li');
+                        ul.classList.add("message-item");
+                        ul.innerHTML = cmd[i];
+                        if (cmd[i + 1] == "2"){
+                            ul.classList.add("admin");
+                        }
+                        ul.id = "user-" + cmd[i];
+                        document.getElementById('users').appendChild(ul);
+                    }
+                }
+                if (cmd[0] == 'remuser'){
+                    document.getElementById("user-" + cmd[2]).remove();
                 }
             }
         }
@@ -583,7 +597,9 @@
             <button id="voteno" onclick="socket.send(encodeCommand(['vote','0']))">Vote No</button>
             <br><br>
         </div>
-        <div id="users" class="message-pane" style="display:inline-block"><li class="message-item" style="font-size:25px">Users online</li></div>
+        <div id="users" class="message-pane" style="display:inline-block">
+            <li class="message-item" style="font-size:25px">Users online</li>
+        </div>
         <div id="chat" class="message-pane" style="display:inline-block"></div>
         <br><br>
         <input id="chat-input" style="width:600px;position:sticky;position:relative;left:300px">
