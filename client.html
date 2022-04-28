@@ -593,6 +593,9 @@
                             turntime = setInterval(function () {
                                 document.getElementById('status').innerHTML = "Turn time left: " + Math.floor(i) + " seconds";
                                 i--;
+                                if (i == 0){
+                                    clearInterval(turntime);
+                                }
                             }, 1000);
                         }
                     }
