@@ -247,9 +247,23 @@
         button {
             font-size: 20px
         }
-        .admin{
-            color:red;
-            font-weight:bold;
+
+        .admin {
+            color: red;
+            font-weight: bold;
+        }
+
+        .mod {
+            color: lime;
+            font-weight: bold;
+        }
+
+        .takingturn {
+            background-color: #4dcbeb
+        }
+
+        .waitingturn {
+            background-color: #e9fc7c
         }
     </style>
     <script>
@@ -292,9 +306,12 @@
             return command;
         }
         function rename() {
+            oldusername = username;
             username = prompt("New username");
             socket.send(encodeCommand(['rename', username]));
             document.getElementById('title').innerHTML = "BetterTimber | VM: " + params.get('name') + " | Username: " + username;
+            document.getElementById('user-' + oldusername).innerHTML = username;
+            document.getElementById('user-' + oldusername).id = "user-" + username;
         }
         function admin() {
             pass = prompt("Admin password");
@@ -305,6 +322,7 @@
             document.getElementById('endturn').style.removeProperty('display');
             document.getElementById('taketurn').style.display = "none";
             socket.send(encodeCommand(['turn']));
+            screen.canvas.focus();
         }
         function taketurnScreen() {
             if (document.getElementById('endturn').style.display = "none") {
@@ -312,6 +330,7 @@
                 document.getElementById('endturn').style.removeProperty('display');
                 document.getElementById('taketurn').style.display = "none";
                 socket.send(encodeCommand(['turn']));
+                screen.canvas.focus();
             }
         }
         function endturn() {
@@ -330,7 +349,7 @@
             params = new URLSearchParams(window.location.search);
             username = "guest" + (Math.floor(Math.random() * 98999) + 10).toString();
             document.getElementById('title').innerHTML = "BetterTimber | VM: " + params.get('name') + " | Username: " + username;
-            canvas = document.getElementById('screen').getContext('2d');
+            canvas = document.getElementById('screen');
             screen = document.getElementById('screen').getContext('2d');
             computernewbVM = params.get('vm').startsWith('computernewb.com/collab-vm/vm');
             //var socket;
@@ -345,29 +364,41 @@
             canvas.oncontextmenu = function (e) {
                 cancelEvent(e);
             };
+            screen.canvas.oncontextmenu = function (e) {
+                cancelEvent(e);
+            };
+            var mouseLeft, mouseMiddle, mouseRight;
             let updateMouseBtnVars = function (e) {
-                this.mouseLeft = (e.buttons & 0b001) == 0b001;
-                this.mouseRight = (e.buttons & 0b010) == 0b010;
-                this.mouseMiddle = (e.buttons & 0b100) == 0b100;
+                mouseLeft = (e.buttons & 0b001) == 0b001;
+                mouseRight = (e.buttons & 0b010) == 0b010;
+                mouseMiddle = (e.buttons & 0b100) == 0b100;
             }
             let sendMouse = function (x, y) {
                 let btnMask = 0;
-                if (this.mouseLeft) btnMask |= 1;
-                if (this.mouseMiddle) btnMask |= 2;
-                if (this.mouseRight) btnMask |= 4;
-                currentConn.sendGuac(['mouse', Math.floor(x).toString(), Math.floor(y).toString(), btnMask.toString()]);
+                if (mouseLeft) btnMask |= 1;
+                if (mouseMiddle) btnMask |= 2;
+                if (mouseRight) btnMask |= 4;
+                socket.send(encodeCommand(['mouse', Math.floor(x).toString(), Math.floor(y).toString(), btnMask.toString()]));
             };
             let onmouse = function (e) {
                 cancelEvent(e);
                 updateMouseBtnVars(e);
-                let rect = e.target.getBoundingClientRect();
-                let x = (e.clientX - rect.left) / canvas.getBoundingClientRect().width * canvas.width;
-                let y = (e.clientY - rect.top) / canvas.getBoundingClientRect().height * canvas.height;
+                //let rect = e.target.getBoundingClientRect();
+                let rect = screen.canvas.getBoundingClientRect();
+                //let x = (e.clientX - rect.left) / canvas.getBoundingClientRect().width * canvas.width;
+                //let y = (e.clientY - rect.top) / canvas.getBoundingClientRect().height * canvas.height;
+                let x = (e.clientX - rect.left) / rect.width * canvas.width;
+                let y = (e.clientY - rect.top) / rect.height * canvas.height;
                 sendMouse(x, y);
             };
+            /*
             canvas.onmouseup = onmouse;
             canvas.onmousedown = onmouse;
             canvas.onmousemove = onmouse;
+            */
+            screen.canvas.onmouseup = onmouse;
+            screen.canvas.onmousedown = onmouse;
+            screen.canvas.onmousemove = onmouse;
             document.getElementById('chat-input').addEventListener('keyup', function (event) {
                 if (event.key == "Enter") {
                     socket.send(encodeCommand(['chat', document.getElementById('chat-input').value]));
@@ -514,6 +545,7 @@
                 }
                 socket.send(encodeCommand(['rename', username]));
                 cmd = decodeTwo(e.data);
+                //console.log(cmd);
                 if (cmd[0] == "chat" && !(cmd[1] == "")) {
                     //document.getElementById('chat').innerHTML += "\n" + cmd[1] + ": " + cmd[2];
                     ul = document.createElement('li');
@@ -542,11 +574,34 @@
                     imgData = screen.createImageData(canvas.width, canvas.height);
                     img.src = 'data:image/png;base64,' + cmd[5].split('.').pop();
                     img.onload = function () {
+                        //screen.drawImage(img, parseInt(cmd[3]), parseInt(cmd[4]));
                         screen.drawImage(img, parseInt(cmd[3]), parseInt(cmd[4]));
+                        /*
                         screen.canvas.width = img.width;
                         screen.canvas.height = img.height;
+                        */
                     }
 
+                }
+                if (cmd[0] == "turn") {
+                    console.log(cmd);
+                    if (cmd[2] == "1") {
+                        document.getElementById('user-' + cmd[3]).classList.add("takingturn");
+                        if (cmd[3] == username) {
+                            let i = cmd[1] / 1000;
+                            document.getElementById('status').innerHTML = "Turn time left: " + Math.floor(i) + " seconds";
+                            turntime = setInterval(function () {
+                                document.getElementById('status').innerHTML = "Turn time left: " + Math.floor(i) + " seconds";
+                                i--;
+                            }, 1000);
+                        }
+                    }
+                    if (cmd[2] == "2") {
+                        document.getElementById('user-' + cmd[cmd.length - 1]).classList.add("waitingturn");
+                    }
+                    if (cmd[2] == "0") {
+                        document.getElementsByClassName('takingturn')[0].classList.remove('takingturn');
+                    }
                 }
                 if (cmd[0] == 'size' && cmd[1] == "0") {
                     screen.canvas.width = parseInt(cmd[2]);
@@ -557,15 +612,28 @@
                         ul = document.createElement('li');
                         ul.classList.add("message-item");
                         ul.innerHTML = cmd[i];
-                        if (cmd[i + 1] == "2"){
+                        if (cmd[i + 1] == "2") {
                             ul.classList.add("admin");
+                        }
+                        if (cmd[i + 1] == "1") {
+                            ul.classList.add("mod");
+                        }
+                        if (cmd[i] == username) {
+                            ul.style.fontStyle = "italic";
+                        }
+                        if (cmd[i] == "iexist") {
+                            ul.style.color = "orange";
+                            ul.style.fontWeight = "bold";
                         }
                         ul.id = "user-" + cmd[i];
                         document.getElementById('users').appendChild(ul);
                     }
                 }
-                if (cmd[0] == 'remuser'){
+                if (cmd[0] == 'remuser') {
                     document.getElementById("user-" + cmd[2]).remove();
+                }
+                if (cmd[0] == 'rename') {
+                    console.log(cmd);
                 }
             }
         }
@@ -590,9 +658,10 @@
             <img id="screen2">
             <button id="taketurn" onclick="taketurn()">Take Turn</button>
             <button id="endturn" onclick="endturn()" style="display:none">End Turn</button>
-            <button id="keyboard" onclick="alert('coming soon')">Keyboard</button>
+            <button id="keyboard" onclick="alert('coming soon')">Keyboard Shortcuts</button>
             <button id="rename" onclick="rename()">Rename</button>
             <button id="admin" onclick="admin()">Admin</button>
+            <button id="admin-options" onclick="admin-options()" style="display:none">Admin Options</button>
             <button id="voteyes" onclick="socket.send(encodeCommand(['vote','1']))">Vote Yes</button>
             <button id="voteno" onclick="socket.send(encodeCommand(['vote','0']))">Vote No</button>
             <br><br>
