@@ -357,10 +357,10 @@
             if (params.get('vm').startsWith('computernewb.com/collab-vm/vm')){
                 socket = new WebSocket("wss://" + params.get('vm'), ['guacamole']);
             }else{
-                socket = new WebSocket("ws://" + params.get('vm'), ['guacamole']);
+                socket = new WebSocket("wss://" + params.get('vm'), ['guacamole']);
             }
             */
-            socket = new WebSocket("ws://" + params.get('vm'), ['guacamole']);
+            socket = new WebSocket("wss://" + params.get('vm'), ['guacamole']);
             canvas.oncontextmenu = function (e) {
                 cancelEvent(e);
             };
@@ -534,7 +534,7 @@
             }
             socket.onerror = function (err) {
                 console.error("Error: " + err);
-                socket = new WebSocket("ws://" + params.get('vm'), ['guacamole']);
+                socket = new WebSocket("wss://" + params.get('vm'), ['guacamole']);
             }
             socket.onmessage = function (e) {
                 //socket.send(encodeCommand(['connect', params.get('name')]));
